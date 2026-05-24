@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Network Sniffer — CodeAlpha Task 1</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css"/>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+
+  header { display: flex; align-items: center; gap: 12px; padding: 1rem 1.5rem;
+    background: #161b27; border-bottom: 1px solid #2d3748; }
+  header h1 { font-size: 16px; font-weight: 600; color: #fff; }
+  .badge { font-size: 11px; padding: 3px 8px; border-radius: 6px; font-weight: 600; }
+  .b-blue  { background: #1e3a5f; color: #63b3ed; }
+  .b-green { background: #1a3a2a; color: #68d391; }
+  .b-gray  { background: #2d3748; color: #a0aec0; }
+  #live-dot { display:inline-block; width:8px; height:8px; border-radius:50%;
+    background:#68d391; animation: pulse 1.2s infinite; margin-right:4px; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  .stat-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px;
+    padding: 1rem 1.5rem; }
+  .stat { background: #161b27; border: 1px solid #2d3748; border-radius: 10px;
+    padding: 12px 14px; text-align: center; }
+  .stat-val { font-size: 26px; font-weight: 700; }
+  .stat-lbl { font-size: 11px; color: #718096; margin-top: 3px; text-transform: uppercase; letter-spacing:.05em; }
+
+  .row { display: grid; grid-template-columns: 1fr 1.8fr; gap: 12px; padding: 0 1.5rem 1rem; }
+
+  .card { background: #161b27; border: 1px solid #2d3748; border-radius: 10px; overflow: hidden; }
+  .card-hdr { font-size: 11px; font-weight: 600; color: #718096; padding: 10px 14px;
+    border-bottom: 1px solid #2d3748; text-transform: uppercase; letter-spacing:.05em;
+    display:flex; justify-content:space-between; align-items:center; }
+
+  .bar-row { display: flex; align-items: center; gap: 8px; padding: 8px 14px;
+    border-bottom: 1px solid #1a202c; }
+  .bar-row:last-child { border-bottom: none; }
+  .bar-lbl { font-size: 12px; color: #a0aec0; width: 36px; text-align: right; }
+  .bar-track { flex: 1; height: 8px; background: #2d3748; border-radius: 4px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; transition: width .5s ease; }
+  .bar-pct { font-size: 11px; color: #718096; min-width: 30px; text-align: right; }
+
+  .toolbar { display: flex; gap: 8px; align-items: center; padding: 0 1.5rem .75rem; flex-wrap: wrap; }
+  .toolbar select, .toolbar input {
+    font-size: 13px; padding: 6px 10px; border-radius: 7px;
+    border: 1px solid #2d3748; background: #1a202c; color: #e2e8f0; outline: none; }
+  .toolbar input { width: 170px; }
+  .btn { font-size: 13px; padding: 6px 14px; border-radius: 7px; border: 1px solid #2d3748;
+    background: transparent; color: #e2e8f0; cursor: pointer; display:flex; align-items:center; gap:5px; }
+  .btn:hover { background: #2d3748; }
+  .btn-primary { background: #2b6cb0; border-color: #2b6cb0; color: #fff; }
+  .btn-primary:hover { background: #2c5282; }
+  .btn-danger { border-color: #9b2c2c; color: #fc8181; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; font-size: 11px; font-weight: 600; color: #718096;
+    padding: 8px 10px; border-bottom: 1px solid #2d3748; white-space: nowrap;
+    text-transform: uppercase; letter-spacing:.05em; }
+  td { padding: 7px 10px; border-bottom: 1px solid #1a202c; font-family: 'Courier New', monospace;
+    font-size: 11px; color: #cbd5e0; white-space: nowrap; }
+  tr:hover td { background: #1a202c; }
+
+  .proto { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;
+    font-family: system-ui; text-transform: uppercase; }
+  .p-tcp  { background:#1e3a5f; color:#63b3ed; }
+  .p-udp  { background:#3d2a00; color:#f6ad55; }
+  .p-icmp { background:#3d1515; color:#fc8181; }
+  .p-arp  { background:#2d1b5e; color:#b794f4; }
+  .p-dns  { background:#1a3a2a; color:#68d391; }
+  .p-http { background:#1a3030; color:#4fd1c5; }
+
+  .tl-wrap { padding: 0 1.5rem .75rem; }
+  .tl-label { font-size:11px; font-weight:600; color:#718096; text-transform:uppercase;
+    letter-spacing:.05em; margin-bottom:6px; }
+  .tl-track { display:flex; align-items:flex-end; gap:2px; height:50px;
+    background:#161b27; border:1px solid #2d3748; border-radius:8px; padding:6px 8px; overflow:hidden; }
+  .tl-bar { flex:1; border-radius:2px; min-height:3px; transition:height .3s; }
+
+  footer { text-align:center; padding:1rem; font-size:12px; color:#4a5568; border-top:1px solid #2d3748; }
+</style>
+</head>
+<body>
+
+<header>
+  <i class="ti ti-radar" style="font-size:22px;color:#63b3ed;"></i>
+  <h1>Network Sniffer</h1>
+  <span class="badge b-blue">CodeAlpha — Task 1</span>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:10px;">
+    <span id="clock" style="font-size:12px;color:#718096;font-family:monospace;"></span>
+    <span class="badge b-green" id="status-badge"><span id="live-dot"></span>LIVE</span>
+  </div>
+</header>
+
+<div class="stat-grid">
+  <div class="stat"><div class="stat-val" id="s-total">0</div><div class="stat-lbl">Total</div></div>
+  <div class="stat"><div class="stat-val" style="color:#63b3ed;" id="s-tcp">0</div><div class="stat-lbl">TCP</div></div>
+  <div class="stat"><div class="stat-val" style="color:#f6ad55;" id="s-udp">0</div><div class="stat-lbl">UDP</div></div>
+  <div class="stat"><div class="stat-val" style="color:#fc8181;" id="s-icmp">0</div><div class="stat-lbl">ICMP</div></div>
+  <div class="stat"><div class="stat-val" style="color:#b794f4;" id="s-arp">0</div><div class="stat-lbl">ARP</div></div>
+  <div class="stat"><div class="stat-val" style="color:#68d391;" id="s-dns">0</div><div class="stat-lbl">DNS</div></div>
+</div>
+
+<div class="tl-wrap">
+  <div class="tl-label">Activité réseau (30 dernières secondes)</div>
+  <div class="tl-track" id="tl-track"></div>
+</div>
+
+<div class="row">
+  <div class="card">
+    <div class="card-hdr">Distribution protocoles</div>
+    <div id="bars"></div>
+  </div>
+  <div class="card">
+    <div class="card-hdr">
+      Paquets capturés
+      <div style="display:flex;gap:6px;">
+        <select id="filter-proto" style="font-size:11px;padding:3px 6px;border-radius:5px;border:1px solid #2d3748;background:#1a202c;color:#e2e8f0;">
+          <option value="all">Tous</option>
+          <option value="TCP">TCP</option>
+          <option value="UDP">UDP</option>
+          <option value="ICMP">ICMP</option>
+          <option value="ARP">ARP</option>
+          <option value="DNS">DNS</option>
+          <option value="HTTP">HTTP</option>
+        </select>
+        <input id="filter-ip" type="text" placeholder="Filtrer IP…" style="font-size:11px;padding:3px 8px;width:110px;border-radius:5px;border:1px solid #2d3748;background:#1a202c;color:#e2e8f0;"/>
+      </div>
+    </div>
+    <div style="overflow-x:auto;max-height:280px;overflow-y:auto;">
+      <table>
+        <thead><tr><th>#</th><th>Heure</th><th>Proto</th><th>Source</th><th>Destination</th><th>Port</th><th>Info</th></tr></thead>
+        <tbody id="pkt-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="toolbar">
+  <button class="btn btn-primary" id="toggle-btn" onclick="toggleCapture()">
+    <i class="ti ti-player-pause"></i> Pause
+  </button>
+  <button class="btn btn-danger" onclick="clearPackets()">
+    <i class="ti ti-trash"></i> Vider
+  </button>
+</div>
+
+<footer>CodeAlpha Cybersecurity Internship — Task 1 : Basic Network Sniffer &nbsp;|&nbsp; dashboard.html</footer>
+
+<script>
+const PROTOS = ['TCP','UDP','ICMP','ARP','DNS','HTTP'];
+const PROTO_COLORS = ['#63b3ed','#f6ad55','#fc8181','#b794f4','#68d391','#4fd1c5'];
+const INFOS = {
+  TCP:['SYN → port 443 (HTTPS)','FIN session close','PSH data transfer','RST reset','SYN-ACK established'],
+  UDP:['len=128 payload','len=512 payload','len=64 payload'],
+  ICMP:['ECHO-REQUEST','ECHO-REPLY','UNREACHABLE'],
+  ARP:['WHO-HAS 192.168.1.1','IS-AT aa:bb:cc:dd'],
+  DNS:['QUERY google.com','REPLY 142.250.74.14','QUERY github.com','QUERY api.example.com'],
+  HTTP:['GET / HTTP/1.1','POST /api/login','200 OK','GET /index.html'],
+};
+const PORTS = {TCP:[80,443,22,3306,8080],UDP:[53,67,123],ICMP:[0],ARP:[0],DNS:[53],HTTP:[80,8080]};
+
+let packets=[], counts={total:0,TCP:0,UDP:0,ICMP:0,ARP:0,DNS:0}, running=true, tlData=new Array(30).fill(0);
+
+function randIP(){ const n=['192.168.1','10.0.0','172.16.0','8.8'];return n[Math.floor(Math.random()*n.length)]+'.'+Math.floor(Math.random()*254+1); }
+function pad(n){return String(n).padStart(2,'0');}
+function timeNow(){const d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds())+'.'+String(d.getMilliseconds()).padStart(3,'0');}
+
+function genPacket(){
+  const proto=PROTOS[Math.floor(Math.random()*PROTOS.length)];
+  return {id:counts.total+1,time:timeNow(),proto,src:randIP(),dst:randIP(),
+    port:PORTS[proto][Math.floor(Math.random()*PORTS[proto].length)],
+    info:INFOS[proto][Math.floor(Math.random()*INFOS[proto].length)]};
+}
+
+function renderBars(){
+  const t=counts.total||1;
+  document.getElementById('bars').innerHTML=PROTOS.map((p,i)=>{
+    const k=p==='HTTP'?'TCP':p; const c=counts[k]||0; const pct=Math.round(c/t*100);
+    return `<div class="bar-row"><span class="bar-lbl">${p}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${PROTO_COLORS[i]};"></div></div>
+      <span class="bar-pct">${pct}%</span></div>`;
+  }).join('');
+}
+
+function renderTable(){
+  const fp=document.getElementById('filter-proto').value;
+  const fi=document.getElementById('filter-ip').value.trim().toLowerCase();
+  const vis=packets.filter(p=>(fp==='all'||p.proto===fp)&&(!fi||p.src.includes(fi)||p.dst.includes(fi))).slice(-60).reverse();
+  document.getElementById('pkt-body').innerHTML=vis.map(p=>`<tr>
+    <td style="color:#4a5568;">${p.id}</td><td>${p.time}</td>
+    <td><span class="proto p-${p.proto.toLowerCase()}">${p.proto}</span></td>
+    <td>${p.src}</td><td>${p.dst}</td><td>${p.port||'-'}</td>
+    <td style="color:#718096;max-width:160px;overflow:hidden;text-overflow:ellipsis;">${p.info}</td></tr>`).join('');
+}
+
+function renderTimeline(){
+  const max=Math.max(...tlData,1);
+  document.getElementById('tl-track').innerHTML=tlData.map(v=>{
+    const h=Math.max(3,Math.round(v/max*38));
+    const col=v>max*.7?'#fc8181':v>max*.4?'#f6ad55':'#63b3ed';
+    return `<div class="tl-bar" style="height:${h}px;background:${col};"></div>`;
+  }).join('');
+}
+
+function updateStats(){
+  ['total','tcp','udp','icmp','arp','dns'].forEach(k=>
+    document.getElementById('s-'+k).textContent=counts[k.toUpperCase()]??counts[k]);
+  document.getElementById('s-total').textContent=counts.total;
+}
+
+function tick(){
+  if(!running){tlData.push(0);if(tlData.length>30)tlData.shift();renderTimeline();return;}
+  const burst=Math.floor(Math.random()*3)+1;
+  for(let i=0;i<burst;i++){
+    const p=genPacket(); packets.push(p); counts.total++;
+    const k=p.proto==='HTTP'?'TCP':p.proto;
+    if(counts[k]!==undefined)counts[k]++;
+  }
+  if(packets.length>200)packets=packets.slice(-200);
+  tlData.push(counts.total); if(tlData.length>30)tlData.shift();
+  updateStats(); renderBars(); renderTable(); renderTimeline();
+}
+
+function toggleCapture(){
+  running=!running;
+  document.getElementById('toggle-btn').innerHTML=running?'<i class="ti ti-player-pause"></i> Pause':'<i class="ti ti-player-play"></i> Reprendre';
+  const b=document.getElementById('status-badge');
+  b.textContent=running?' LIVE':' PAUSE';
+  if(running){b.className='badge b-green';b.innerHTML='<span id="live-dot"></span>LIVE';}
+  else{b.className='badge b-gray';b.textContent='PAUSE';}
+}
+
+function clearPackets(){packets=[];counts={total:0,TCP:0,UDP:0,ICMP:0,ARP:0,DNS:0};tlData=new Array(30).fill(0);updateStats();renderBars();renderTable();renderTimeline();}
+
+document.getElementById('filter-proto').addEventListener('change',renderTable);
+document.getElementById('filter-ip').addEventListener('input',renderTable);
+setInterval(tick,600);
+setInterval(()=>{const d=new Date();document.getElementById('clock').textContent=pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());},1000);
+tick();
+</script>
+</body>
+</html>
